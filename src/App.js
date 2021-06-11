@@ -1,33 +1,76 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import AddTask from './components/AddTask';
 
 import Header from './components/Header';
 import Tasks from './components/Tasks';
+// import { serverUrl } from './constants';
+
+const serverUrl = "http://localhost:5000";
 
 function App() {
   const [showAddTask, setShowAddTask] = useState(false)
 
-  const [tasks, setTasks] = useState([
-    { id: "1", text: "Shopping", day: "Feb 5th at 2:30pm", reminder: false },
-    { id: "2", text: "Doctor's Appointment", day: "Feb 5th at 2:30pm", reminder: true },
-    { id: "3", text: "School Admission", day: "Feb 8th at 5:30pm", reminder: false }
-  ]);
+  const [tasks, setTasks] = useState([]);
 
   // Add Task
-  const addTask = task => {
-    const id = Math.floor(Math.random() * 100000) + 1;
-    setTasks([...tasks, { id, ...task }]);
+  const addTask = async task => {
+    const res = await fetch(`${serverUrl}/tasks/`, {
+      method: "POST",
+      headers: {
+        "Content-type": "application/json"
+      },
+      body: JSON.stringify(task)
+    });
+    const data = await res.json();
+    setTasks([...tasks, data]);
   }
 
   // Delete task
-  const deleteTask = id => {
-    setTasks(tasks.filter(t => t.id !== id));
+  const deleteTask = async (id) => {
+    try {
+      await fetch(`${serverUrl}/tasks/${id}`, {
+        method: "DELETE",
+      });
+      setTasks(tasks.filter(t => t.id !== id));
+
+    } catch (err) {
+      console.log("Unable to delete data", err)
+    }
   }
 
   // Toggle Reminder
-  const toggleReminder = id => {
-    setTasks(tasks.map(t => t.id === id ? { ...t, reminder: !t.reminder } : t));
+  const toggleReminder = async id => {
+    const taskToToggle = await fetchTasks(id);
+    const updateTask = { ...taskToToggle, reminder: !taskToToggle.reminder };
+
+    const res = await fetch(`${serverUrl}/tasks/${id}`, {
+      method: "PUT",
+      headers: {
+        "Content-type": "application/json"
+      },
+      body: JSON.stringify(updateTask)
+    });
+    const data = await res.json();
+    setTasks(tasks.map(t => t.id === id ? { ...t, reminder: data.reminder } : t));
   }
+
+  // Fetch Tasks
+  const fetchTasks = async (id = "") => {
+    const res = await fetch(`${serverUrl}/tasks/${id}`);
+    const data = await res.json();
+
+    return data;
+  }
+
+  useEffect(() => {
+    const getTasks = async () => {
+      const tasksFromServer = await fetchTasks();
+      setTasks(tasksFromServer)
+
+      console.log(tasks);
+    }
+    getTasks();
+  }, [])
 
   return (
     <div className="container">
